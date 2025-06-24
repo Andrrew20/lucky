@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_USER: webuser
+      POSTGRES_DB: webappdb
+    networks:
+      - private-net
+    restart: unless-stopped
+
+  webapp:
+    build: ./webapp
+    ports:
+      - "5000:5000"
+    environment:
+      - TARGET_CPU=30
+    networks:
+      - private-net
+    depends_on:
+      - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: '0.65'
+    restart: unless-stopped
+
+  haproxy:
+    image: haproxy:2.4
+    ports:
+      - "80:80"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    networks:
+      - public-net
+      - private-net
+    depends_on:
+      - webapp
+    restart: unless-stopped
+
+  locust:
+    image: locustio/locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./locust/locustfile.py:/locust/locustfile.py
+    command: -f /locust/locustfile.py --host http://haproxy
+    networks:
+      - public-net
+    restart: unless-stopped
+
+networks:
+  public-net:
+    driver: bridge
+  private-net:
+    driver: bridge
+    internal: true
+
+volumes:
+  pg_data:
