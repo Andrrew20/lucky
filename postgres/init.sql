@@ -1,0 +1,3 @@
+CREATE USER webuser WITH PASSWORD 'secret';
+CREATE DATABASE webappdb;
+GRANT ALL PRIVILEGES ON DATABASE webappdb TO webuser;
